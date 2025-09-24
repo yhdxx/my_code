@@ -33,7 +33,7 @@ def main():
     # --- hyperparams ---
     num_clients = 8
     tail_in_features = 512
-    epochs = 200
+    epochs = 500
     local_epochs = 1
     batch_size = 128
     server_lr = 5e-4

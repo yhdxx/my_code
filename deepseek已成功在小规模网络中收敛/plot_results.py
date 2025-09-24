@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import sys
 
 def plot_results(csv_path, save_path=None):
@@ -10,9 +11,9 @@ def plot_results(csv_path, save_path=None):
     if 'avg_accuracy' not in df.columns or 'avg_loss' not in df.columns:
         raise ValueError("CSV文件中缺少 avg_accuracy 或 avg_loss 列")
 
-    epochs = df['epoch']
-    avg_acc = df['avg_accuracy']
-    avg_loss = df['avg_loss']
+    epochs = df['epoch'].values  # 转换为numpy数组
+    avg_acc = df['avg_accuracy'].values  # 转换为numpy数组
+    avg_loss = df['avg_loss'].values  # 转换为numpy数组
 
     # 找出客户端的准确率列（匹配 client_X_accuracy）
     client_acc_cols = [col for col in df.columns if col.startswith("client_") and col.endswith("_accuracy")]
@@ -22,7 +23,7 @@ def plot_results(csv_path, save_path=None):
 
     # (1) 客户端准确率 + 平均准确率
     for col in client_acc_cols:
-        ax1.plot(epochs, df[col], alpha=0.5, label=col)
+        ax1.plot(epochs, df[col].values, alpha=0.5, label=col)  # 添加.values
     ax1.plot(epochs, avg_acc, color='black', linewidth=2, label='avg_accuracy')
     ax1.set_ylabel("Accuracy")
     ax1.set_ylim(0, 1.0)
