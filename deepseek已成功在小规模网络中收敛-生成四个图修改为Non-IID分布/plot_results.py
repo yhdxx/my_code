@@ -24,8 +24,8 @@ def plot_federated_learning_results(csv_file):
     client_columns = [col for col in df.columns if 'client_' in col and 'accuracy' in col]
     num_clients = len(client_columns)
 
-    # 绘制准确率图表
-    epochs = df['epoch']
+    # 绘制准确率图表 - 将pandas Series转换为numpy数组
+    epochs = df['epoch'].values  # 添加.values转换为numpy数组
 
     # 自动生成颜色（支持任意数量客户端）
     cmap = plt.cm.get_cmap("tab20", num_clients)
@@ -34,14 +34,17 @@ def plot_federated_learning_results(csv_file):
     # 图1: 所有客户端的准确率
     for i in range(num_clients):
         acc_col = f'client_{i}_accuracy'
-        ax1.plot(epochs, df[acc_col],
+        # 转换为numpy数组
+        acc_values = df[acc_col].values
+        ax1.plot(epochs, acc_values,
                  label=f'Client {i}',
                  color=colors[i % len(colors)],
                  alpha=0.7,
                  linewidth=2)
 
-    # 绘制平均准确率
-    ax1.plot(epochs, df['avg_accuracy'], label='Average', color='black', linewidth=3, linestyle='--')
+    # 绘制平均准确率 - 转换为numpy数组
+    avg_acc_values = df['avg_accuracy'].values
+    ax1.plot(epochs, avg_acc_values, label='Average', color='black', linewidth=3, linestyle='--')
 
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Accuracy')
@@ -53,14 +56,17 @@ def plot_federated_learning_results(csv_file):
     # 图2: 所有客户端的损失
     for i in range(num_clients):
         loss_col = f'client_{i}_loss'
-        ax2.plot(epochs, df[loss_col],
+        # 转换为numpy数组
+        loss_values = df[loss_col].values
+        ax2.plot(epochs, loss_values,
                  label=f'Client {i}',
                  color=colors[i % len(colors)],
                  alpha=0.7,
                  linewidth=2)
 
-    # 绘制平均损失
-    ax2.plot(epochs, df['avg_loss'], label='Average', color='black', linewidth=3, linestyle='--')
+    # 绘制平均损失 - 转换为numpy数组
+    avg_loss_values = df['avg_loss'].values
+    ax2.plot(epochs, avg_loss_values, label='Average', color='black', linewidth=3, linestyle='--')
 
     ax2.set_xlabel('Epoch')
     ax2.set_ylabel('Loss')
@@ -71,14 +77,15 @@ def plot_federated_learning_results(csv_file):
     # 图3: 平均准确率和损失（双Y轴）
     ax3_twin = ax3.twinx()
 
-    accuracy_line = ax3.plot(epochs, df['avg_accuracy'], label='Avg Accuracy', color='blue', linewidth=2)
+    # 转换为numpy数组
+    accuracy_line = ax3.plot(epochs, avg_acc_values, label='Avg Accuracy', color='blue', linewidth=2)
     ax3.set_xlabel('Epoch')
     ax3.set_ylabel('Accuracy', color='blue')
     ax3.tick_params(axis='y', labelcolor='blue')
     ax3.set_ylim(0, 1)
     ax3.grid(True, alpha=0.3)
 
-    loss_line = ax3_twin.plot(epochs, df['avg_loss'], label='Avg Loss', color='red', linewidth=2)
+    loss_line = ax3_twin.plot(epochs, avg_loss_values, label='Avg Loss', color='red', linewidth=2)
     ax3_twin.set_ylabel('Loss', color='red')
     ax3_twin.tick_params(axis='y', labelcolor='red')
 

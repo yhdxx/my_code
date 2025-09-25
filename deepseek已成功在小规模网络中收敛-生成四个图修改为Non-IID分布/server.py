@@ -1,47 +1,52 @@
-
 # server.py
 import torch
-import torch.optim as optim
+import torch.nn as nn
+from collections import OrderedDict
+
 
 class Server:
-    def __init__(self, server_model, lr=0.01, device='cpu', use_adam=True):
+    def __init__(self, server_model, device='cpu'):
         self.device = device
         self.model = server_model.to(device)
-        if use_adam:
-            self.opt = optim.Adam(self.model.parameters(), lr=lr)
-        else:
-            self.opt = optim.SGD(self.model.parameters(), lr=lr)
 
-    def aggregate_and_update(self, list_of_tail_grads_with_weights):
+    def aggregate_and_update(self, list_of_tail_params_with_weights):
         """
-        聚合客户端上传的尾端梯度并更新服务器模型
-        list_of_tail_grads_with_weights: list of tuples (gdict, weight)
+        聚合客户端上传的尾端参数并更新服务器模型 (FedAvg)
+        list_of_tail_params_with_weights: list of tuples (param_dict, weight)
         """
-        if not list_of_tail_grads_with_weights:
+        if not list_of_tail_params_with_weights:
             return
 
-        total_weight = sum(float(w) for _, w in list_of_tail_grads_with_weights)
+        total_weight = sum(float(w) for _, w in list_of_tail_params_with_weights)
         if total_weight == 0:
             return
 
-        first_gdict = list_of_tail_grads_with_weights[0][0]
-        avg = {k: torch.zeros_like(v, device=self.device) for k, v in first_gdict.items()}
+        # 获取第一个客户端的参数字典作为模板
+        first_params_dict = list_of_tail_params_with_weights[0][0]
 
-        for gdict, w in list_of_tail_grads_with_weights:
+        # 1. 初始化平均参数字典
+        avg_state_dict = OrderedDict()
+        for k, v in first_params_dict.items():
+            # 复制第一个客户端的值作为起始，并移动到设备上
+            avg_state_dict[k] = v.to(self.device).clone()
+
+            # 如果是浮点型参数 (权重/BN统计量)，将其归零，准备进行加权平均
+            if v.is_floating_point():
+                avg_state_dict[k].zero_()
+
+        # 2. 对浮点型参数进行加权平均
+        for params_dict, w in list_of_tail_params_with_weights:
             weight = float(w) / total_weight
-            for k, v in gdict.items():
-                avg[k] += v.to(self.device) * weight
+            for k, v in params_dict.items():
+                if v.is_floating_point():
+                    # 仅对浮点型参数执行 FedAvg 操作
+                    avg_state_dict[k] += v.to(self.device) * weight
+                # 对于非浮点型参数 (如 num_batches_tracked)，它们已经在第一步中从第一个客户端处复制，
+                # 且无需进行加权平均，故在此步骤跳过。
 
-        # 设置模型梯度
-        self.opt.zero_grad()
-        name_to_param = dict(self.model.named_parameters())
-        for k, avg_grad in avg.items():
-            if k in name_to_param:
-                name_to_param[k].grad = avg_grad.clone()
-            else:
-                raise KeyError(f"Server model missing param {k}")
-
-        self.opt.step()
+        # 将平均后的参数加载到服务器模型
+        self.model.load_state_dict(avg_state_dict)
 
     def get_tail_state(self):
+        # 确保返回 CPU 上的参数
         return {k: v.cpu() for k, v in self.model.state_dict().items()}
