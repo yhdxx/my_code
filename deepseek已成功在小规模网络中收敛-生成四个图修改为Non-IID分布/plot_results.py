@@ -1,4 +1,3 @@
-# plot_results.py
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,11 +27,18 @@ def plot_federated_learning_results(csv_file):
     # 绘制准确率图表
     epochs = df['epoch']
 
+    # 自动生成颜色（支持任意数量客户端）
+    cmap = plt.cm.get_cmap("tab20", num_clients)
+    colors = [cmap(i) for i in range(num_clients)]
+
     # 图1: 所有客户端的准确率
-    colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown'][:num_clients]
     for i in range(num_clients):
         acc_col = f'client_{i}_accuracy'
-        ax1.plot(epochs, df[acc_col], label=f'Client {i}', color=colors[i], alpha=0.7, linewidth=2)
+        ax1.plot(epochs, df[acc_col],
+                 label=f'Client {i}',
+                 color=colors[i % len(colors)],
+                 alpha=0.7,
+                 linewidth=2)
 
     # 绘制平均准确率
     ax1.plot(epochs, df['avg_accuracy'], label='Average', color='black', linewidth=3, linestyle='--')
@@ -47,7 +53,11 @@ def plot_federated_learning_results(csv_file):
     # 图2: 所有客户端的损失
     for i in range(num_clients):
         loss_col = f'client_{i}_loss'
-        ax2.plot(epochs, df[loss_col], label=f'Client {i}', color=colors[i], alpha=0.7, linewidth=2)
+        ax2.plot(epochs, df[loss_col],
+                 label=f'Client {i}',
+                 color=colors[i % len(colors)],
+                 alpha=0.7,
+                 linewidth=2)
 
     # 绘制平均损失
     ax2.plot(epochs, df['avg_loss'], label='Average', color='black', linewidth=3, linestyle='--')
@@ -58,10 +68,9 @@ def plot_federated_learning_results(csv_file):
     ax2.legend()
     ax2.grid(True, alpha=0.3)
 
-    # 图3: 仅显示平均准确率和损失（双Y轴）
+    # 图3: 平均准确率和损失（双Y轴）
     ax3_twin = ax3.twinx()
 
-    # 准确率（左轴）
     accuracy_line = ax3.plot(epochs, df['avg_accuracy'], label='Avg Accuracy', color='blue', linewidth=2)
     ax3.set_xlabel('Epoch')
     ax3.set_ylabel('Accuracy', color='blue')
@@ -69,12 +78,10 @@ def plot_federated_learning_results(csv_file):
     ax3.set_ylim(0, 1)
     ax3.grid(True, alpha=0.3)
 
-    # 损失（右轴）
     loss_line = ax3_twin.plot(epochs, df['avg_loss'], label='Avg Loss', color='red', linewidth=2)
     ax3_twin.set_ylabel('Loss', color='red')
     ax3_twin.tick_params(axis='y', labelcolor='red')
 
-    # 合并图例
     lines = accuracy_line + loss_line
     labels = [l.get_label() for l in lines]
     ax3.legend(lines, labels, loc='upper left')
@@ -98,38 +105,31 @@ def plot_federated_learning_results(csv_file):
     ax4.legend()
     ax4.grid(True, alpha=0.3, axis='y')
 
-    # 在柱状图上添加数值标签
     for bar in bars1:
         height = bar.get_height()
-        ax4.text(bar.get_x() + bar.get_width() / 2., height,
-                 f'{height:.3f}', ha='center', va='bottom')
+        ax4.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}', ha='center', va='bottom')
 
     for bar in bars2:
         height = bar.get_height()
-        ax4.text(bar.get_x() + bar.get_width() / 2., height,
-                 f'{height:.3f}', ha='center', va='bottom')
+        ax4.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}', ha='center', va='bottom')
 
     plt.tight_layout()
 
-    # 保存图表
     plot_filename = csv_file.replace('.csv', '_plot.png')
     plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
     print(f"图表已保存为: {plot_filename}")
 
     plt.show()
 
-    # 打印详细结果统计
     print("\n=== 详细训练结果统计 ===")
     print(f"训练轮次: {len(df)}")
     print(f"最终平均准确率: {df['avg_accuracy'].iloc[-1]:.4f}")
     print(f"最终平均损失: {df['avg_loss'].iloc[-1]:.4f}")
     print(f"最高平均准确率: {df['avg_accuracy'].max():.4f} (第 {df['avg_accuracy'].idxmax() + 1} 轮)")
 
-    # 各客户端最终表现
     print("\n各客户端最终表现:")
     for i in range(num_clients):
-        print(
-            f"Client {i}: 准确率={df[f'client_{i}_accuracy'].iloc[-1]:.4f}, 损失={df[f'client_{i}_loss'].iloc[-1]:.4f}")
+        print(f"Client {i}: 准确率={df[f'client_{i}_accuracy'].iloc[-1]:.4f}, 损失={df[f'client_{i}_loss'].iloc[-1]:.4f}")
 
     return fig
 
@@ -143,7 +143,6 @@ def find_latest_csv(results_dir="results"):
     if not csv_files:
         return None
 
-    # 按修改时间排序，返回最新的文件
     csv_files.sort(key=os.path.getmtime, reverse=True)
     return csv_files[0]
 
@@ -160,7 +159,6 @@ def main():
     if args.csv:
         csv_file = args.csv
     else:
-        # 自动查找最新的结果文件
         csv_file = find_latest_csv(args.results_dir)
         if csv_file:
             print(f"自动选择最新文件: {csv_file}")

@@ -1,36 +1,38 @@
+
 # server.py
 import torch
-import torch.nn as nn
 import torch.optim as optim
-import copy
 
 class Server:
-    def __init__(self, server_model: nn.Module, lr=0.01, device='cpu'):
+    def __init__(self, server_model, lr=0.01, device='cpu', use_adam=True):
         self.device = device
         self.model = server_model.to(device)
-        self.opt = optim.SGD(self.model.parameters(), lr=lr)
+        if use_adam:
+            self.opt = optim.Adam(self.model.parameters(), lr=lr)
+        else:
+            self.opt = optim.SGD(self.model.parameters(), lr=lr)
 
-    def aggregate_and_update(self, list_of_tail_grads):
+    def aggregate_and_update(self, list_of_tail_grads_with_weights):
         """
-        list_of_tail_grads: list of dicts {param_name: grad_tensor} from clients.
-        We'll average them (element-wise) and apply as .grad on server model, then optimizer.step()
+        聚合客户端上传的尾端梯度并更新服务器模型
+        list_of_tail_grads_with_weights: list of tuples (gdict, weight)
         """
-        if len(list_of_tail_grads) == 0:
+        if not list_of_tail_grads_with_weights:
             return
-        # init accumulator
-        avg = {}
-        cnt = len(list_of_tail_grads)
-        for param_name in list_of_tail_grads[0].keys():
-            avg[param_name] = torch.zeros_like(list_of_tail_grads[0][param_name], device=self.device)
-        # sum
-        for gdict in list_of_tail_grads:
+
+        total_weight = sum(float(w) for _, w in list_of_tail_grads_with_weights)
+        if total_weight == 0:
+            return
+
+        first_gdict = list_of_tail_grads_with_weights[0][0]
+        avg = {k: torch.zeros_like(v, device=self.device) for k, v in first_gdict.items()}
+
+        for gdict, w in list_of_tail_grads_with_weights:
+            weight = float(w) / total_weight
             for k, v in gdict.items():
-                avg[k] += v.to(self.device)
-        # average
-        for k in avg:
-            avg[k] = avg[k] / cnt
-        # set server model .grad
-        # zero grads first
+                avg[k] += v.to(self.device) * weight
+
+        # 设置模型梯度
         self.opt.zero_grad()
         name_to_param = dict(self.model.named_parameters())
         for k, avg_grad in avg.items():
@@ -38,7 +40,7 @@ class Server:
                 name_to_param[k].grad = avg_grad.clone()
             else:
                 raise KeyError(f"Server model missing param {k}")
-        # optimizer step
+
         self.opt.step()
 
     def get_tail_state(self):

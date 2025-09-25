@@ -5,7 +5,7 @@
 3. 运行：
 
 ```bash
-python run.py
+python run.py --num_clients 5 --front_layers 784,256,128 --tail_layers 6 --epochs 50
 ```
 
 4. 脚本会生成 `loss_log.csv`，其中每一行是每轮（round）每个客户端的平均 loss，可以用 Excel 或 matplotlib 绘图。

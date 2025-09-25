@@ -1,42 +1,55 @@
-# model.py
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 class ServerTail(nn.Module):
-    """Shared last-n-layers model (server side). We'll keep it as an MLP tail for MNIST."""
-    def __init__(self, in_features=128, hidden=64, out_features=10):
+    """服务器端共享层 (尾部)，支持灵活设置层数"""
+    def __init__(self, in_features=128, hidden=64, out_features=10, num_layers=8):
         super().__init__()
-        self.fc1 = nn.Linear(in_features, hidden)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden, out_features)
+        layers = []
+        input_dim = in_features
+
+        for i in range(num_layers - 1):
+            layers.append(nn.Linear(input_dim, hidden))
+            layers.append(nn.ReLU())
+            input_dim = hidden
+
+        # 输出层
+        layers.append(nn.Linear(input_dim, out_features))
+        self.net = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        return x
+        return self.net(x)
+
 
 class ClientModel(nn.Module):
-    """Client full model = private front (varied) + shared tail (same class as ServerTail)."""
-    def __init__(self, front_sizes=[784, 256], tail_in_features=128):
+    """客户端完整模型 = 前端(隐私层) + 尾端(共享层)"""
+    def __init__(self, front_sizes=[784, 256, 128], tail_layers=8, num_classes=10):
         """
-        front_sizes: list describing an MLP front: [input_dim, hidden1, hidden2, ..., tail_in_features]
-        tail_in_features must match ServerTail.in_features
+        front_sizes: list，例如 [784, 256, 128]
+                     最后一个元素为共享层输入维度
+        tail_layers: int，共享层层数
+        num_classes: 分类类别数
         """
         super().__init__()
         layers = []
-        for i in range(len(front_sizes)-1):
+        for i in range(len(front_sizes) - 1):
             layers.append(nn.Linear(front_sizes[i], front_sizes[i+1]))
             layers.append(nn.ReLU())
-        # The front will output activations of size front_sizes[-1] which should equal tail_in_features
-        self.front = nn.Sequential(*layers)
-        # The tail is provided separately (server-side); here we'll create a copy to hold parameters locally.
-        # But its structure must match ServerTail.
-        self.tail = ServerTail(in_features=front_sizes[-1])
+
+        # 如果没有前端中间层（例如 front_sizes == [784]），使用 Identity
+        if len(layers) > 0:
+            self.front = nn.Sequential(*layers)
+        else:
+            # 输入已经会在 forward 中被 flatten 为 (batch, 784)
+            self.front = nn.Identity()
+
+        # 共享尾部（结构与服务器端一致）
+        self.tail = ServerTail(in_features=front_sizes[-1], num_layers=tail_layers, out_features=num_classes)
 
     def forward(self, x):
         x = x.view(x.size(0), -1)
         a = self.front(x)
         out = self.tail(a)
         return out
+
