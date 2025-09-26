@@ -113,7 +113,7 @@ def main():
     parser.add_argument("--front_layers", type=str, default="784,256,128",
                         help="前端层结构, 逗号分隔")
     parser.add_argument("--tail_layers", type=int, default=6, help="共享层数")
-    parser.add_argument("--epochs", type=int, default=100, help="全局训练轮数")
+    parser.add_argument("--epochs", type=int, default=50, help="全局训练轮数")
     parser.add_argument("--local_epochs", type=int, default=3, help="客户端本地训练轮数")
     parser.add_argument("--alpha", type=float, default=0.5, help="狄利克雷分布参数alpha，控制数据不平衡程度")
     parser.add_argument("--partition_method", type=str, default="dirichlet",
