@@ -241,14 +241,14 @@ if __name__ == "__main__":
     main()
 '''
 # 使用狄利克雷分布，alpha=0.1（高度不平衡）
-python run.py --partition_method dirichlet --alpha 0.1
+python3 run.py --partition_method dirichlet --alpha 0.1
 
 # 使用狄利克雷分布，alpha=1.0（中等不平衡）
-python run.py --partition_method dirichlet --alpha 1.0
+python3 run.py --partition_method dirichlet --alpha 1.0
 
 # 使用狄利克雷分布，alpha=10.0（相对平衡）
-python run.py --partition_method dirichlet --alpha 10.0
+python3 run.py --partition_method dirichlet --alpha 10.0
 
 # 使用原来的shards方法
-python run.py --partition_method shards
+python3 run.py --partition_method shards
 '''
